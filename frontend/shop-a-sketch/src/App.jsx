@@ -3,7 +3,7 @@ import { Settings, User, Share2, Clock } from 'lucide-react';
 import { Button } from "./components/ui/button";
 import { Avatar, AvatarFallback } from "./components/ui/avatar";
 import { DrawingCanvas } from "./components/DrawingCanvas";
-import { ProductResults } from '@/app/components/ProductResults';
+import { ProductResults } from './components/ProductResults';
 
 export default function App() {
   const [showResults, setShowResults] = useState(false);
