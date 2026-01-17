@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Settings, User, Share2, Clock } from 'lucide-react';
-import { Button } from '@/app/components/ui/button';
-import { Avatar, AvatarFallback } from '@/app/components/ui/avatar';
-import { DrawingCanvas } from '@/app/components/DrawingCanvas';
+import { Button } from "./components/ui/button";
+import { Avatar, AvatarFallback } from "./components/ui/avatar";
+import { DrawingCanvas } from "./components/DrawingCanvas";
 import { ProductResults } from '@/app/components/ProductResults';
 
 export default function App() {
