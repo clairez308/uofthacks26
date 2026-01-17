@@ -126,6 +126,41 @@ export function DrawingCanvas({ onSearch, showFeedback }) {
         ctx.putImageData(previousState, 0, 0);
     };
 
+    async function handleSearch() {
+        if (!canvasRef.current) return;
+      
+        // 1. Get the drawing as base64
+        const dataUrl = canvasRef.current.toDataURL("image/png");
+      
+        try {
+          // 2. Send image to backend to generate a query
+          const queryRes = await fetch("http://localhost:5001/api/image-to-query", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ image: dataUrl }),
+          });
+          const { query, error: queryError } = await queryRes.json();
+          if (queryError) throw new Error(queryError);
+      
+          console.log("AI-generated query:", query);
+      
+          // 3. Send query to your product search API
+          const searchRes = await fetch("http://localhost:5002/api/search", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ query }),
+          });
+          const data = await searchRes.json();
+      
+          // 4. Update state with products (assuming you have a setProducts in parent)
+          setProducts(data.products);
+          setShowResults(true);
+        } catch (err) {
+          console.error("Search failed:", err);
+        }
+      }
+      
+
     return (
         <div className="flex flex-col h-full">
             {/* Toolbar */}

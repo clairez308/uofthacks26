@@ -8,11 +8,38 @@ import { ProductResults } from '@/app/components/ProductResults';
 export default function App() {
   const [showResults, setShowResults] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [products, setProducts] = useState([]); // <-- store API results
+  const [loading, setLoading] = useState(false);
 
-  const handleSearch = () => {
+  const handleSearch = async(query) => {
     setShowResults(true);
     setShowFeedback(true);
+    setLoading(true);
+
+    try {
+        const res = await fetch("http://localhost:5002/api/search", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ query }), // <-- send the query
+        });
+  
+        const data = await res.json();
+  
+        if (data.success) {
+          setProducts(data.products); // <-- store products in state
+          setShowResults(true);
+        } else {
+          console.error("Search failed:", data.error);
+        }
+      } catch (err) {
+        console.error("Search error:", err);
+      } finally {
+        setLoading(false);
+      }
   };
+  
 
   const drawingHistory = [
     { id: 1, label: 'Chair sketch', time: '2 min ago' },
@@ -75,7 +102,7 @@ export default function App() {
 
         {/* Right Panel - Product Results */}
         <div className="w-[60%] flex flex-col">
-          <ProductResults showResults={showResults} />
+          <ProductResults showResults={showResults} products={products} />
         </div>
       </div>
 
