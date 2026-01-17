@@ -1,163 +1,89 @@
-// Import packages
-const express = require('express');
-const cors = require('cors');
-const multer = require('multer');
-require('dotenv').config();
+require("dotenv").config();
 
-const serpAPIService = require('./serpapi-service');
-const logger = require('./logger');
+const express = require("express");
+const cors = require("cors");
+const multer = require("multer");
+const axios = require("axios");
 
-// Create the app
 const app = express();
-const PORT = process.env.PORT || 5000;
+const upload = multer({ storage: multer.memoryStorage() });
 
-// Middleware (processes requests before they reach your routes)
-app.use(cors()); // Allow frontend to connect
-app.use(express.json()); // Parse JSON data
+app.use(cors());
+app.use(express.json());
 
-// Set up file upload handling
-const upload = multer({ 
-  storage: multer.memoryStorage(), // Store images in memory temporarily
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-  fileFilter: (req, file, cb) => {
-    // Accept images only
-    if (!file.mimetype.startsWith('image/')) {
-      return cb(new Error('Only image files are allowed!'), false);
-    }
-    cb(null, true);
-  }
+const PORT = process.env.PORT || 5002;
+const SERPAPI_KEY = process.env.SERPAPI_KEY;
+
+/* ===============================
+   HEALTH CHECK
+================================ */
+app.get("/", (req, res) => {
+  res.json({ status: "Server running" });
 });
 
-// ==================== ROUTES ====================
-
-/**
- * Health check endpoint
- */
-app.get('/', (req, res) => {
-  res.json({ 
-    message: 'Google Shopping Sketch Search API',
-    status: 'running',
-    version: '1.0.0',
-    endpoints: {
-      health: 'GET /api/health',
-      search: 'POST /api/search',
-      testSearch: 'GET /api/test-search'
-    }
-  });
-});
-
-/**
- * Health check with details
- */
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    serpAPI: process.env.SERPAPI_KEY ? 'configured' : 'using mock data',
-    uptime: process.uptime()
-  });
-});
-
-/**
- * Test endpoint - search Google Shopping with a query string
- * Example: GET /api/test-search?q=backpack
- */
-app.get('/api/test-search', async (req, res) => {
+/* ===============================
+   SEARCH ENDPOINT
+================================ */
+app.post("/api/search", upload.single("sketch"), async (req, res) => {
   try {
-    const query = req.query.q || 'backpack';
-    const limit = parseInt(req.query.limit) || 10;
-    
-    logger.info(`Test search for: "${query}"`);
-    
-    const products = await serpAPIService.searchProducts(query, limit);
-    
+    const query = req.body.query;
+
+    if (!query) {
+      return res.status(400).json({ error: "Query missing" });
+    }
+
+    console.log("🔍 Searching for:", query);
+
+    const serpRes = await axios.get("https://serpapi.com/search.json", {
+      params: {
+        engine: "google_shopping",
+        q: query,
+        hl: "en",
+        gl: "us",
+        api_key: SERPAPI_KEY
+      }
+    });
+
+    const items = serpRes.data.shopping_results || [];
+
+    const products = items.map(item => {
+      // Prefer product_link, fallback to SerpApi product URL
+      let rawUrl = item.link || item.product_link || (item.product_id
+        ? `https://www.google.com/shopping/product/${item.product_id}`
+        : "#");
+
+      // Encode the URL so spaces and special characters don't break it
+      const fixedUrl = rawUrl ? encodeURI(rawUrl) : "#";
+
+      return {
+        id: item.product_id || item.position,
+        title: item.title,
+        description: item.snippet || item.title,
+        price: item.price ? parseFloat(item.price.replace(/[^0-9.]/g, "")) : null,
+        currency: "USD",
+        image: item.thumbnail,
+        url: fixedUrl,
+        source: item.source,
+        rating: item.rating || null,
+        reviews: item.reviews || null
+      };
+    });
+
     res.json({
       success: true,
-      query: query,
-      products: products,
-      count: products.length
+      query,
+      count: products.length,
+      products
     });
-    
-  } catch (error) {
-    logger.error('Test search failed:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Search failed',
-      details: error.message
-    });
+  } catch (err) {
+    console.error("❌ ERROR:", err.response?.data || err.message);
+    res.status(500).json({ error: "Search failed" });
   }
 });
 
-/**
- * Main search endpoint - receives sketch from frontend
- * POST /api/search
- * Body: FormData with 'sketch' image file
- * Optional: 'query' field for search term override
- */
-app.post('/api/search', upload.single('sketch'), async (req, res) => {
-  try {
-    logger.info('📥 Received sketch search request');
-    
-    // Validate sketch upload
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        error: 'No sketch image provided'
-      });
-    }
-    
-    logger.info(`📷 Sketch received: ${req.file.size} bytes, type: ${req.file.mimetype}`);
-    
-    // For now, use a default query
-    // Member B will replace this with AI-generated search terms
-    const searchQuery = req.body.query || 'product';
-    
-    logger.info(`🔍 Search query: "${searchQuery}"`);
-    
-    // Step 1: Member B will generate search terms from sketch
-    // For now, we use the provided query or default
-    
-    // Step 2: Search Google Shopping
-    const products = await serpAPIService.searchProducts(searchQuery, 20);
-    
-    // Step 3: Member B will rank products by similarity to sketch
-    // For now, we return products as-is
-    
-    // Return top matches
-    const topMatches = products.slice(0, 12);
-    
-    logger.success(`✅ Returning ${topMatches.length} products`);
-    
-    res.json({ 
-      success: true, 
-      products: topMatches,
-      count: topMatches.length,
-      query: searchQuery
-    });
-    
-  } catch (error) {
-    logger.error('❌ Search error:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Search failed',
-      details: error.message
-    });
-  }
-});
-
-// Error handling middleware
-app.use((error, req, res, next) => {
-  logger.error('Unhandled error:', error);
-  res.status(500).json({
-    success: false,
-    error: 'Internal server error',
-    details: process.env.NODE_ENV === 'development' ? error.message : undefined
-  });
-});
-
-// Start server
+/* ===============================
+   START SERVER
+================================ */
 app.listen(PORT, () => {
-  logger.success(`Server running on http://localhost:${PORT}`);
-  logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  logger.info(`SerpAPI: ${process.env.SERPAPI_KEY ? 'Active' : 'Mock Mode'}`);
+  console.log(`✅ Server running on http://localhost:${PORT}`);
 });
