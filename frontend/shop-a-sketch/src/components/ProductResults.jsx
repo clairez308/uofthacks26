@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { ExternalLink } from 'lucide-react';
-import { Button } from '@/app/components/ui/button';
-import { Slider } from '@/app/components/ui/slider';
-import { Badge } from '@/app/components/ui/badge';
-import { Card } from '@/app/components/ui/card';
+import { Button } from './ui/button';
+import { Slider } from './ui/slider';
+import { Badge } from './ui/badge';
+import { Card } from './ui/card';
 
 const mockProducts = [
     {

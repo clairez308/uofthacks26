@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from 'react';
 import { Brush, Eraser, Palette, Undo, Trash2 } from 'lucide-react';
-import { Button } from '@/app/components/ui/button';
-import { Slider } from '@/app/components/ui/slider';
+import { Button } from './ui/button';
+import { Slider } from './ui/slider';
 
 export function DrawingCanvas({ onSearch, showFeedback }) {
     const canvasRef = useRef(null);
