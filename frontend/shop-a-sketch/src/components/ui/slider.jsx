@@ -11,7 +11,7 @@ function Slider({
   value,
   min = 0,
   max = 100,
-  ...pross
+  ...props
 }) {
   const _values = React.useMemo(
     () =>

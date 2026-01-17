@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState} from 'react';
 import { Settings, User, Share2, Clock } from 'lucide-react';
 import { Button } from "./components/ui/button";
 import { Avatar, AvatarFallback } from "./components/ui/avatar";
