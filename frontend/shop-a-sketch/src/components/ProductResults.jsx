@@ -99,12 +99,23 @@ export function ProductResults({ showResults, products, loading = false }) {
                         </div>
                     </div>
                 ) : !showResults ? (
-                <div className="text-center text-gray-500 h-full flex items-center justify-center">
-                    <div>
-                        <p className="text-lg mb-2">Draw something and click Search</p>
-                        <p className="text-sm text-gray-400">Your sketch will be analyzed to find matching products</p>
+                    <div className="bg-[#cbd6c6] h-full flex flex-col items-center justify-center text-center px-6 rounded-xl">
+                        <div className="w-50 h-50 mb-6 opacity-80 rounded-xl overflow-hidden border-white border-4">
+                            <img
+                                src="/mascot.jpg"
+                                alt="Draw to search"
+                                className="w-full h-full object-contain"
+                            />
+                        </div>
+
+                        <h2 className="text-lg font-bold text-gray-800 mb-2">
+                            No results yet
+                        </h2>
+
+                        <p className="text-sm text-gray-600 max-w-sm">
+                            Draw an object in the canvas on the left and click <span className="font-medium">Search Products</span> to find matching products.
+                        </p>
                     </div>
-                </div>
                 ) : filteredProducts.length === 0 ? (
                     <div className="text-center text-gray-500 h-full flex items-center justify-center">
                         <p>No products found</p>
@@ -113,14 +124,27 @@ export function ProductResults({ showResults, products, loading = false }) {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {filteredProducts.map((product) => (
                     <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                        <img src={product.image} alt={product.title} className="w-full h-48 object-cover" />
+                        {product.image && (
+                            <img
+                                src={product.image}
+                                alt={product.title}
+                                className="w-full h-48 object-cover bg-gray-100"
+                                onError={(e) => {
+                                    e.target.src = 'https://via.placeholder.com/400x400?text=No+Image';
+                                }}
+                            />
+                        )}
                         <div className="p-4">
-                        <h3 className="font-semibold text-gray-900 mb-1">{product.title}</h3>
-                        <p className="text-sm text-gray-600 mb-3">{product.store}</p>
+                        <h3 className="font-semibold text-gray-900 mb-1 line-clamp-2">{product.title}</h3>
+                        <p className="text-sm text-gray-600 mb-3">{product.source || 'Unknown Store'}</p>
                         <div className="flex items-center justify-between mb-3">
-                            <span className="text-2xl font-bold text-gray-900">${product.price}</span>
+                            <span className="text-2xl font-bold text-gray-900">
+                                ${typeof product.price === 'number' ? product.price.toFixed(2) : product.price || 'N/A'}
+                            </span>
                             {product.rating && (
-                            <span className="text-sm text-yellow-500">{product.rating} ★ ({product.reviews})</span>
+                            <span className="text-sm text-yellow-500">
+                                {product.rating} ★ {product.reviews ? `(${product.reviews})` : ''}
+                            </span>
                             )}
                         </div>
                         <Button
@@ -128,7 +152,7 @@ export function ProductResults({ showResults, products, loading = false }) {
                             className="w-full bg-[#008060] hover:bg-[#006e52] text-white"
                             size="sm"
                         >
-                            <a href={product.url} target="_blank" rel="noopener noreferrer">
+                            <a href={product.url || '#'} target="_blank" rel="noopener noreferrer">
                             <ExternalLink className="h-4 w-4 mr-2" />
                             View in Store
                             </a>

@@ -95,7 +95,7 @@ export default function App() {
   return (
     <div className="h-screen flex flex-col bg-white" style={{ fontFamily: 'Inter, -apple-system, system-ui, sans-serif' }}>
       {/* Header */}
-      <header className="border-b border-gray-200 bg-white shadow-sm">
+      <header className="border-b border-gray-200 bg-[#cbd6c6] shadow-sm">
         <div className="px-3 py-1.5 flex items-center justify-between">
         <div className="flex items-center gap-3">
             <div className="w-50 h-15 rounded-lg flex items-center justify-center overflow-hidden">
