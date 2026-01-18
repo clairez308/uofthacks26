@@ -302,7 +302,7 @@ export function DrawingCanvas({ onSearch }) {
                             className="text-xs px-2 py-1 h-8"
                         >
                             <Palette className="h-3.5 w-3.5 mr-1" />
-                            Color
+                            Colour
                             <div
                                 className="ml-1.5 w-4 h-4 rounded border border-gray-300"
                                 style={{ backgroundColor: currentColor }}
