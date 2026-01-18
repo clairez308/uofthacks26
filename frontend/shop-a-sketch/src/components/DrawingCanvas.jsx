@@ -3,7 +3,7 @@ import { Brush, Eraser, Palette, Undo, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Slider } from './ui/slider';
 
-export function DrawingCanvas({ onSearch, showFeedback }) {
+export function DrawingCanvas({ onSearch }) {
     const canvasRef = useRef(null);
     const [isDrawing, setIsDrawing] = useState(false);
     const [currentTool, setCurrentTool] = useState('brush');
@@ -134,8 +134,9 @@ export function DrawingCanvas({ onSearch, showFeedback }) {
         ctx.lineCap = 'round';
 
         if (currentTool === 'eraser') {
-            ctx.globalCompositeOperation = 'source-over';
-            ctx.strokeStyle = '#FFFFFF';
+            // Eraser should make pixels transparent, not draw white
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.strokeStyle = 'rgba(0, 0, 0, 1)'; // Color doesn't matter for destination-out
         } else {
             ctx.globalCompositeOperation = 'source-over';
             ctx.strokeStyle = currentColor;
@@ -318,12 +319,53 @@ export function DrawingCanvas({ onSearch, showFeedback }) {
                             return;
                         }
                         try {
-                            const dataUrl = canvasRef.current.toDataURL("image/png");
-                            if (!dataUrl || dataUrl === 'data:,') {
-                                alert('Please draw something first');
+                            const drawingCanvas = canvasRef.current;
+                            if (!drawingCanvas) {
+                                alert('Canvas not found. Please refresh the page.');
                                 return;
                             }
-                            console.log('Canvas image captured, length:', dataUrl.length);
+
+                            // Check if canvas has any drawing content
+                            const ctx = drawingCanvas.getContext('2d');
+                            const imageData = ctx.getImageData(0, 0, drawingCanvas.width, drawingCanvas.height);
+                            const pixels = imageData.data;
+                            let hasContent = false;
+                            
+                            // Check if there are any non-transparent pixels
+                            for (let i = 3; i < pixels.length; i += 4) {
+                                if (pixels[i] > 0) { // Alpha channel > 0 means there's content
+                                    hasContent = true;
+                                    break;
+                                }
+                            }
+
+                            if (!hasContent) {
+                                alert('Please draw something first before searching.');
+                                return;
+                            }
+
+                            // Create a temporary canvas with white background (excludes grid)
+                            const tempCanvas = document.createElement('canvas');
+                            tempCanvas.width = drawingCanvas.width;
+                            tempCanvas.height = drawingCanvas.height;
+                            const tempCtx = tempCanvas.getContext('2d');
+                            
+                            // Fill with white background
+                            tempCtx.fillStyle = '#FFFFFF';
+                            tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+                            
+                            // Draw only the drawing canvas content (not the grid) onto white background
+                            tempCtx.drawImage(drawingCanvas, 0, 0);
+                            
+                            // Convert to data URL (now it's just the drawing on white, no grid)
+                            const dataUrl = tempCanvas.toDataURL("image/png");
+                            
+                            if (!dataUrl || dataUrl === 'data:,') {
+                                alert('Error capturing drawing. Please try again.');
+                                return;
+                            }
+                            
+                            console.log('Canvas image captured (drawing only, no grid), length:', dataUrl.length);
                             if (onSearch && typeof onSearch === 'function') {
                                 onSearch(dataUrl);
                             } else {
