@@ -51,34 +51,17 @@ export default function App() {
     <div className="h-screen flex flex-col bg-white" style={{ fontFamily: 'Inter, -apple-system, system-ui, sans-serif' }}>
       {/* Header */}
       <header className="border-b border-gray-200 bg-white shadow-sm">
-        <div className="px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#008060] rounded-lg flex items-center justify-center">
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M3 15L9 9L13 13L21 5"
-                  stroke="white"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+        <div className="px-3 py-1.5 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+            <div className="w-50 h-15 rounded-lg flex items-center justify-center overflow-hidden">
+                <img
+                src="/logo.png"       // <-- path from public folder
+                alt="Logo"
+                className="w-full h-full object-cover"
                 />
-                <path
-                  d="M21 11V5H15"
-                  stroke="white"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">Sketch2Shop</h1>
-          </div>
+        </div>
+
 
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" className="rounded-full">
