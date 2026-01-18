@@ -11,33 +11,60 @@ export default function App() {
   const [products, setProducts] = useState([]); // <-- store API results
   const [loading, setLoading] = useState(false);
 
-  const handleSearch = async(query) => {
-    setShowResults(true);
+  // Get API URLs from environment variables, fallback to localhost for development
+  const PYTHON_API_URL = import.meta.env.VITE_PYTHON_API_URL || 'http://localhost:5001';
+  const NODE_API_URL = import.meta.env.VITE_NODE_API_URL || 'http://localhost:5002';
+
+  const handleSearch = async (imageDataUrl) => {
+    setShowResults(false);
     setShowFeedback(true);
     setLoading(true);
 
     try {
-        const res = await fetch("http://localhost:5002/api/search", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ query }), // <-- send the query
-        });
-  
-        const data = await res.json();
-  
-        if (data.success) {
-          setProducts(data.products); // <-- store products in state
-          setShowResults(true);
-        } else {
-          console.error("Search failed:", data.error);
-        }
-      } catch (err) {
-        console.error("Search error:", err);
-      } finally {
-        setLoading(false);
+      // Step 1: Send image to Python API to generate query
+      const queryRes = await fetch(`${PYTHON_API_URL}/api/image-to-query`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: imageDataUrl }),
+      });
+
+      if (!queryRes.ok) {
+        throw new Error(`Image-to-query failed: ${queryRes.statusText}`);
       }
+
+      const queryData = await queryRes.json();
+      if (queryData.error) {
+        throw new Error(queryData.error);
+      }
+
+      const generatedQuery = queryData.query;
+      console.log("AI-generated query:", generatedQuery);
+
+      // Step 2: Send query to Node backend to search products
+      const searchRes = await fetch(`${NODE_API_URL}/api/search`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: generatedQuery }),
+      });
+
+      if (!searchRes.ok) {
+        throw new Error(`Search failed: ${searchRes.statusText}`);
+      }
+
+      const searchData = await searchRes.json();
+
+      if (searchData.success) {
+        setProducts(searchData.products);
+        setShowResults(true);
+      } else {
+        throw new Error(searchData.error || "Search failed");
+      }
+    } catch (err) {
+      console.error("Search error:", err);
+      alert(`Error: ${err.message}. Please try again.`);
+    } finally {
+      setLoading(false);
+    }
   };
   
 
