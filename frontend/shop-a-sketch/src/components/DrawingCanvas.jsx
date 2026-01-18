@@ -246,13 +246,6 @@ export function DrawingCanvas({ onSearch, showFeedback }) {
                     onMouseUp={stopDrawing}
                     onMouseLeave={stopDrawing}
                 />
-
-                {/* AI Feedback Bubble */}
-                {showFeedback && (
-                    <div className="absolute top-4 left-4 bg-[#008060] text-white px-4 py-2 rounded-lg shadow-lg max-w-[200px]">
-                        <p className="text-sm font-medium">Looks like a chair! 🪑</p>
-                    </div>
-                )}
             </div>
 
             {/* Search Button */}
