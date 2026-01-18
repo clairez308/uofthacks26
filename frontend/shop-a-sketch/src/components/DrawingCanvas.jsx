@@ -5,35 +5,42 @@ import { Slider } from './ui/slider';
 
 export function DrawingCanvas({ onSearch, showFeedback }) {
     const canvasRef = useRef(null);
+    const gridCanvasRef = useRef(null); // NEW: grid canvas
     const [isDrawing, setIsDrawing] = useState(false);
     const [currentTool, setCurrentTool] = useState('brush');
     const [brushSize, setBrushSize] = useState([8]);
     const [currentColor, setCurrentColor] = useState('#000000');
     const [showColorPicker, setShowColorPicker] = useState(false);
     const [history, setHistory] = useState([]);
+    const lastPos = useRef({ x: 0, y: 0 });
 
     const colors = ['#000000', '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE'];
 
+    // Initialize both canvases
     useEffect(() => {
         const canvas = canvasRef.current;
-        if (!canvas) return;
+        const gridCanvas = gridCanvasRef.current;
+        if (!canvas || !gridCanvas) return;
 
         const ctx = canvas.getContext('2d');
-        if (!ctx) return;
+        const gridCtx = gridCanvas.getContext('2d');
+        if (!ctx || !gridCtx) return;
 
-        // Set canvas size
+        // Set canvas sizes
         canvas.width = canvas.offsetWidth;
         canvas.height = canvas.offsetHeight;
+        gridCanvas.width = gridCanvas.offsetWidth;
+        gridCanvas.height = gridCanvas.offsetHeight;
 
-        // Draw grid background
-        drawGrid(ctx, canvas.width, canvas.height);
+        // Draw grid once
+        drawGrid(gridCtx, gridCanvas.width, gridCanvas.height);
     }, []);
 
     const drawGrid = (ctx, width, height) => {
         ctx.strokeStyle = '#E5E7EB';
         ctx.lineWidth = 1;
-
         const gridSize = 20;
+
         for (let x = 0; x <= width; x += gridSize) {
             ctx.beginPath();
             ctx.moveTo(x, 0);
@@ -59,22 +66,28 @@ export function DrawingCanvas({ onSearch, showFeedback }) {
     };
 
     const startDrawing = (e) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const rect = canvas.getBoundingClientRect();
+        lastPos.current = {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top,
+        };
+
         setIsDrawing(true);
         saveHistory();
-        draw(e);
     };
 
     const stopDrawing = () => {
         setIsDrawing(false);
         const canvas = canvasRef.current;
         const ctx = canvas?.getContext('2d');
-        if (ctx) {
-            ctx.beginPath();
-        }
+        if (ctx) ctx.beginPath();
     };
 
     const draw = (e) => {
-        if (!isDrawing && e.type !== 'mousedown') return;
+        if (!isDrawing) return;
 
         const canvas = canvasRef.current;
         const ctx = canvas?.getContext('2d');
@@ -88,17 +101,18 @@ export function DrawingCanvas({ onSearch, showFeedback }) {
         ctx.lineCap = 'round';
 
         if (currentTool === 'eraser') {
-            ctx.globalCompositeOperation = 'destination-out';
-            ctx.strokeStyle = 'rgba(0,0,0,1)';
+            ctx.globalCompositeOperation = 'destination-out'; // erases strokes only
         } else {
             ctx.globalCompositeOperation = 'source-over';
             ctx.strokeStyle = currentColor;
         }
 
+        ctx.beginPath();
+        ctx.moveTo(lastPos.current.x, lastPos.current.y);
         ctx.lineTo(x, y);
         ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(x, y);
+
+        lastPos.current = { x, y };
     };
 
     const handleClear = () => {
@@ -108,7 +122,7 @@ export function DrawingCanvas({ onSearch, showFeedback }) {
 
         saveHistory();
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        drawGrid(ctx, canvas.width, canvas.height);
+        // grid stays intact because it's on a separate canvas
     };
 
     const handleUndo = () => {
@@ -122,44 +136,8 @@ export function DrawingCanvas({ onSearch, showFeedback }) {
         setHistory(history.slice(0, -1));
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        drawGrid(ctx, canvas.width, canvas.height);
         ctx.putImageData(previousState, 0, 0);
     };
-
-    async function handleSearch() {
-        if (!canvasRef.current) return;
-      
-        // 1. Get the drawing as base64
-        const dataUrl = canvasRef.current.toDataURL("image/png");
-      
-        try {
-          // 2. Send image to backend to generate a query
-          const queryRes = await fetch("http://localhost:5001/api/image-to-query", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ image: dataUrl }),
-          });
-          const { query, error: queryError } = await queryRes.json();
-          if (queryError) throw new Error(queryError);
-      
-          console.log("AI-generated query:", query);
-      
-          // 3. Send query to your product search API
-          const searchRes = await fetch("http://localhost:5002/api/search", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ query }),
-          });
-          const data = await searchRes.json();
-      
-          // 4. Update state with products (assuming you have a setProducts in parent)
-          setProducts(data.products);
-          setShowResults(true);
-        } catch (err) {
-          console.error("Search failed:", err);
-        }
-      }
-      
 
     return (
         <div className="flex flex-col h-full">
@@ -253,9 +231,16 @@ export function DrawingCanvas({ onSearch, showFeedback }) {
 
             {/* Canvas Area */}
             <div className="flex-1 relative bg-white">
+                {/* Grid Canvas */}
+                <canvas
+                    ref={gridCanvasRef}
+                    className="absolute top-0 left-0 w-full h-full pointer-events-none z-0"
+                />
+
+                {/* Drawing Canvas */}
                 <canvas
                     ref={canvasRef}
-                    className="w-full h-full cursor-crosshair"
+                    className="absolute top-0 left-0 w-full h-full cursor-crosshair z-10"
                     onMouseDown={startDrawing}
                     onMouseMove={draw}
                     onMouseUp={stopDrawing}
