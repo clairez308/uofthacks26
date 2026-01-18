@@ -7,6 +7,7 @@ export default function App() {
   const [showResults, setShowResults] = useState(false);
   const [products, setProducts] = useState([]); // <-- store API results
   const [loading, setLoading] = useState(false);
+  const [query, setQuery] = useState('');
 
   // Get API URLs from environment variables, fallback to localhost for development
   const PYTHON_API_URL = import.meta.env.VITE_PYTHON_API_URL || 'http://localhost:5001';
@@ -52,6 +53,7 @@ export default function App() {
       }
 
       const generatedQuery = queryData.query;
+      setQuery(generatedQuery);
       console.log("AI-generated query:", generatedQuery);
 
       // Step 2: Send query to Node backend to search products
@@ -107,7 +109,7 @@ export default function App() {
 
         {/* Right Panel - Product Results */}
         <div className="w-[60%] flex flex-col">
-          <ProductResults showResults={showResults} products={products} loading={loading} />
+          <ProductResults showResults={showResults} products={products} loading={loading} query={query} />
         </div>
       </div>
 

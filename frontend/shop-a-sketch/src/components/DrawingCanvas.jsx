@@ -307,7 +307,7 @@ export function DrawingCanvas({ onSearch }) {
         <div className="flex flex-col h-full">
             {/* Toolbar */}
             <div className="p-4 border-b border-gray-200 bg-white">
-                <div className="flex items-center gap-2 mb-4">
+                <div className="flex items-center gap-1.5 sm:gap-2 mb-4">
                     <Button
                         variant={currentTool === 'brush' && !showColorPicker ? 'default' : 'outline'}
                         size="sm"
@@ -315,7 +315,7 @@ export function DrawingCanvas({ onSearch }) {
                             setCurrentTool('brush');
                             setShowColorPicker(false);
                         }}
-                        className={`${currentTool === 'brush' && !showColorPicker ? 'bg-[#008060] hover:bg-[#006e52]' : ''} text-xs px-2 py-1 h-8`}
+                        className={`${currentTool === 'brush' && !showColorPicker ? 'bg-[#008060] hover:bg-[#006e52]' : ''} text-xs px-2 py-1.5 h-8`}
                     >
                         <Brush className="h-3.5 w-3.5 mr-1" />
                         Brush
@@ -328,7 +328,7 @@ export function DrawingCanvas({ onSearch }) {
                             setCurrentTool('eraser');
                             setShowColorPicker(false);
                         }}
-                        className={`${currentTool === 'eraser' && !showColorPicker ? 'bg-[#008060] hover:bg-[#006e52]' : ''} text-xs px-2 py-1 h-8`}
+                        className={`${currentTool === 'eraser' && !showColorPicker ? 'bg-[#008060] hover:bg-[#006e52]' : ''} text-xs px-2 py-1.5 h-8`}
                     >
                         <Eraser className="h-3.5 w-3.5 mr-1" />
                         Eraser
@@ -341,7 +341,7 @@ export function DrawingCanvas({ onSearch }) {
                             setCurrentTool('fill');
                             setShowColorPicker(false);
                         }}
-                        className={`${currentTool === 'fill' && !showColorPicker ? 'bg-[#008060] hover:bg-[#006e52]' : ''} text-xs px-2 py-1 h-8`}
+                        className={`${currentTool === 'fill' && !showColorPicker ? 'bg-[#008060] hover:bg-[#006e52]' : ''} text-xs px-2 py-1.5 h-8`}
                     >
                         <PaintBucket className="h-3.5 w-3.5 mr-1" />
                         Fill
@@ -353,7 +353,7 @@ export function DrawingCanvas({ onSearch }) {
                             variant={showColorPicker ? 'default' : 'outline'}
                             size="sm"
                             onClick={() => setShowColorPicker(!showColorPicker)}
-                            className={`text-xs px-2 py-1 h-8 ${showColorPicker ? 'bg-[#008060] hover:bg-[#006e52]' : ''}`}
+                            className={`text-xs px-2 py-1.5 h-8 ${showColorPicker ? 'bg-[#008060] hover:bg-[#006e52]' : ''}`}
                         >
                             <Palette className="h-3.5 w-3.5 mr-1" />
                             Colour
@@ -416,12 +416,12 @@ export function DrawingCanvas({ onSearch }) {
                         )}
                     </div>
 
-                    <Button variant="outline" size="sm" onClick={handleUndo} disabled={history.length === 0} className="text-xs px-2 py-1 h-8">
+                    <Button variant="outline" size="sm" onClick={handleUndo} disabled={history.length === 0} className="text-xs px-2 py-1.5 h-8">
                         <Undo className="h-3.5 w-3.5 mr-1" />
                         Undo
                     </Button>
 
-                    <Button variant="outline" size="sm" onClick={handleClear} className="text-xs px-2 py-1 h-8">
+                    <Button variant="outline" size="sm" onClick={handleClear} className="text-xs px-2 py-1.5 h-8">
                         <Trash2 className="h-3.5 w-3.5 mr-1" />
                         Clear
                     </Button>

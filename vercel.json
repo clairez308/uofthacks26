@@ -1,0 +1,22 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "frontend/shop-a-sketch/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/frontend/shop-a-sketch/$1"
+    }
+  ],
+  "env": {
+    "VITE_PYTHON_API_URL": "@vite_python_api_url",
+    "VITE_NODE_API_URL": "@vite_node_api_url"
+  }
+}
