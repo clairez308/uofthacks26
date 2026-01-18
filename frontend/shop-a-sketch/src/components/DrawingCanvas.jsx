@@ -258,11 +258,28 @@ export function DrawingCanvas({ onSearch, showFeedback }) {
             {/* Search Button */}
             <div className="p-4 border-t border-gray-200 bg-white">
                 <Button
-                    onClick={() => {
-                        if (!canvasRef.current) return;
-                        const dataUrl = canvasRef.current.toDataURL("image/png");
-                        if (onSearch) {
-                            onSearch(dataUrl);
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (!canvasRef.current) {
+                            console.error('Canvas not found');
+                            return;
+                        }
+                        try {
+                            const dataUrl = canvasRef.current.toDataURL("image/png");
+                            if (!dataUrl || dataUrl === 'data:,') {
+                                alert('Please draw something first');
+                                return;
+                            }
+                            console.log('Canvas image captured, length:', dataUrl.length);
+                            if (onSearch && typeof onSearch === 'function') {
+                                onSearch(dataUrl);
+                            } else {
+                                console.error('onSearch is not a function:', typeof onSearch);
+                            }
+                        } catch (error) {
+                            console.error('Error capturing canvas:', error);
+                            alert('Error capturing drawing. Please try again.');
                         }
                     }}
                     className="w-full bg-[#008060] hover:bg-[#006e52] text-white font-medium"

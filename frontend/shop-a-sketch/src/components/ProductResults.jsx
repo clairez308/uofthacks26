@@ -16,7 +16,7 @@ import { Card } from './ui/card';
 //   }));
   
 
-export function ProductResults({ showResults, products }) {
+export function ProductResults({ showResults, products, loading = false }) {
     const [priceRange, setPriceRange] = useState([0, 1000]);
     // const [selectedMaterials, setSelectedMaterials] = useState([]);
     // const [selectedStyles, setSelectedStyles] = useState([]);
@@ -91,8 +91,24 @@ export function ProductResults({ showResults, products }) {
 
             {/* Results */}
             <div className="flex-1 overflow-y-auto p-6">
-                {!showResults ? (
-                <div className="text-center text-gray-500">Draw something and click Search</div>
+                {loading ? (
+                    <div className="flex items-center justify-center h-full">
+                        <div className="text-center">
+                            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-[#008060] mb-4"></div>
+                            <p className="text-gray-600">Analyzing your sketch...</p>
+                        </div>
+                    </div>
+                ) : !showResults ? (
+                <div className="text-center text-gray-500 h-full flex items-center justify-center">
+                    <div>
+                        <p className="text-lg mb-2">Draw something and click Search</p>
+                        <p className="text-sm text-gray-400">Your sketch will be analyzed to find matching products</p>
+                    </div>
+                </div>
+                ) : filteredProducts.length === 0 ? (
+                    <div className="text-center text-gray-500 h-full flex items-center justify-center">
+                        <p>No products found</p>
+                    </div>
                 ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {filteredProducts.map((product) => (

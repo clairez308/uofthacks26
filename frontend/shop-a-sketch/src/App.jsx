@@ -15,12 +15,30 @@ export default function App() {
   const PYTHON_API_URL = import.meta.env.VITE_PYTHON_API_URL || 'http://localhost:5001';
   const NODE_API_URL = import.meta.env.VITE_NODE_API_URL || 'http://localhost:5002';
 
+  // Debug: log API URLs (will show if env vars are set)
+  console.log('Python API URL:', PYTHON_API_URL);
+  console.log('Node API URL:', NODE_API_URL);
+
   const handleSearch = async (imageDataUrl) => {
+    // Validate input
+    if (!imageDataUrl || typeof imageDataUrl !== 'string') {
+      console.error('Invalid imageDataUrl:', typeof imageDataUrl, imageDataUrl);
+      alert('No drawing found. Please draw something first.');
+      return;
+    }
+
+    if (!imageDataUrl.startsWith('data:image/')) {
+      console.error('Invalid image data URL format:', imageDataUrl.substring(0, 50));
+      alert('Error capturing drawing. Please try again.');
+      return;
+    }
+
     setShowResults(false);
     setShowFeedback(true);
     setLoading(true);
 
     try {
+      console.log('Sending image to Python API...', 'Image length:', imageDataUrl.length);
       // Step 1: Send image to Python API to generate query
       const queryRes = await fetch(`${PYTHON_API_URL}/api/image-to-query`, {
         method: "POST",
@@ -112,7 +130,7 @@ export default function App() {
 
         {/* Right Panel - Product Results */}
         <div className="w-[60%] flex flex-col">
-          <ProductResults showResults={showResults} products={products} />
+          <ProductResults showResults={showResults} products={products} loading={loading} />
         </div>
       </div>
 
