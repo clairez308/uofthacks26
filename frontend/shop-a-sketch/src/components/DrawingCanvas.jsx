@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
-import { Brush, Eraser, Palette, Undo, Trash2 } from 'lucide-react';
+import { Brush, Eraser, Palette, Undo, Trash2, PaintBucket } from 'lucide-react';
 import { Button } from './ui/button';
 import { Slider } from './ui/slider';
 
@@ -91,6 +91,78 @@ export function DrawingCanvas({ onSearch }) {
         setHistory([...history, imageData]);
     };
 
+    // Flood fill algorithm (bucket/fill tool)
+    const floodFill = (ctx, startX, startY, fillColor) => {
+        const canvas = canvasRef.current;
+        if (!canvas || !ctx) return;
+
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        const width = canvas.width;
+        const height = canvas.height;
+
+        // Convert hex color to RGBA
+        const hexToRgba = (hex) => {
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            return [r, g, b, 255];
+        };
+
+        const [fillR, fillG, fillB, fillA] = hexToRgba(fillColor);
+        
+        // Get the color at the starting point
+        const startIndex = ((Math.floor(startY) * width) + Math.floor(startX)) * 4;
+        const targetR = data[startIndex];
+        const targetG = data[startIndex + 1];
+        const targetB = data[startIndex + 2];
+        const targetA = data[startIndex + 3];
+
+        // Check if we're already filling with the same color
+        if (targetR === fillR && targetG === fillG && targetB === fillB && targetA === fillA) {
+            return;
+        }
+
+        // Stack-based flood fill
+        const stack = [[Math.floor(startX), Math.floor(startY)]];
+        const visited = new Set();
+
+        while (stack.length > 0) {
+            const [x, y] = stack.pop();
+            const key = `${x},${y}`;
+
+            if (x < 0 || x >= width || y < 0 || y >= height || visited.has(key)) {
+                continue;
+            }
+
+            const index = (y * width + x) * 4;
+            const r = data[index];
+            const g = data[index + 1];
+            const b = data[index + 2];
+            const a = data[index + 3];
+
+            // Check if pixel matches target color (within tolerance for transparency)
+            if (r === targetR && g === targetG && b === targetB && a === targetA) {
+                visited.add(key);
+                
+                // Set pixel to fill color
+                data[index] = fillR;
+                data[index + 1] = fillG;
+                data[index + 2] = fillB;
+                data[index + 3] = fillA;
+
+                // Add neighbors to stack
+                stack.push([x + 1, y]);
+                stack.push([x - 1, y]);
+                stack.push([x, y + 1]);
+                stack.push([x, y - 1]);
+            }
+        }
+
+        // Put the modified image data back
+        ctx.putImageData(imageData, 0, 0);
+    };
+
     const startDrawing = (e) => {
         // Don't start drawing if color picker is open
         if (showColorPicker) return;
@@ -99,11 +171,20 @@ export function DrawingCanvas({ onSearch }) {
         if (!canvas) return;
 
         const rect = canvas.getBoundingClientRect();
-        lastPos.current = {
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top,
-        };
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
 
+        // Handle fill tool
+        if (currentTool === 'fill') {
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+            
+            saveHistory();
+            floodFill(ctx, x, y, currentColor);
+            return;
+        }
+
+        lastPos.current = { x, y };
         setIsDrawing(true);
         saveHistory();
     };
@@ -181,14 +262,14 @@ export function DrawingCanvas({ onSearch }) {
         <div className="flex flex-col h-full">
             {/* Toolbar */}
             <div className="p-4 border-b border-gray-200 bg-white">
-                <div className="flex items-center gap-3 mb-4">
+                <div className="flex items-center gap-2 mb-4">
                     <Button
                         variant={currentTool === 'brush' ? 'default' : 'outline'}
                         size="sm"
                         onClick={() => setCurrentTool('brush')}
-                        className={currentTool === 'brush' ? 'bg-[#008060] hover:bg-[#006e52]' : ''}
+                        className={`${currentTool === 'brush' ? 'bg-[#008060] hover:bg-[#006e52]' : ''} text-xs px-2 py-1 h-8`}
                     >
-                        <Brush className="h-4 w-4 mr-1" />
+                        <Brush className="h-3.5 w-3.5 mr-1" />
                         Brush
                     </Button>
 
@@ -196,10 +277,20 @@ export function DrawingCanvas({ onSearch }) {
                         variant={currentTool === 'eraser' ? 'default' : 'outline'}
                         size="sm"
                         onClick={() => setCurrentTool('eraser')}
-                        className={currentTool === 'eraser' ? 'bg-[#008060] hover:bg-[#006e52]' : ''}
+                        className={`${currentTool === 'eraser' ? 'bg-[#008060] hover:bg-[#006e52]' : ''} text-xs px-2 py-1 h-8`}
                     >
-                        <Eraser className="h-4 w-4 mr-1" />
+                        <Eraser className="h-3.5 w-3.5 mr-1" />
                         Eraser
+                    </Button>
+
+                    <Button
+                        variant={currentTool === 'fill' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setCurrentTool('fill')}
+                        className={`${currentTool === 'fill' ? 'bg-[#008060] hover:bg-[#006e52]' : ''} text-xs px-2 py-1 h-8`}
+                    >
+                        <PaintBucket className="h-3.5 w-3.5 mr-1" />
+                        Fill
                     </Button>
 
                     <div className="relative">
@@ -208,11 +299,12 @@ export function DrawingCanvas({ onSearch }) {
                             variant="outline"
                             size="sm"
                             onClick={() => setShowColorPicker(!showColorPicker)}
+                            className="text-xs px-2 py-1 h-8"
                         >
-                            <Palette className="h-4 w-4 mr-1" />
+                            <Palette className="h-3.5 w-3.5 mr-1" />
                             Color
                             <div
-                                className="ml-2 w-5 h-5 rounded border border-gray-300"
+                                className="ml-1.5 w-4 h-4 rounded border border-gray-300"
                                 style={{ backgroundColor: currentColor }}
                             />
                         </Button>
@@ -221,9 +313,18 @@ export function DrawingCanvas({ onSearch }) {
                             <div
                                 ref={colorPickerRef}
                                 className="absolute top-full mt-2 left-0 bg-white p-3 rounded-lg shadow-lg border border-gray-200 z-20"
-                                onMouseDown={(e) => e.stopPropagation()}
-                                onMouseMove={(e) => e.stopPropagation()}
-                                onClick={(e) => e.stopPropagation()}
+                                onMouseDown={(e) => {
+                                    // Only stop propagation if not clicking on color input
+                                    if (e.target.type !== 'color') {
+                                        e.stopPropagation();
+                                    }
+                                }}
+                                onClick={(e) => {
+                                    // Only stop propagation if not clicking on color input
+                                    if (e.target.type !== 'color') {
+                                        e.stopPropagation();
+                                    }
+                                }}
                             >
                                 <div className="grid grid-cols-4 gap-2 mb-3">
                                     {colors.map((color) => (
@@ -248,25 +349,26 @@ export function DrawingCanvas({ onSearch }) {
                                     type="color"
                                     value={currentColor}
                                     onChange={(e) => {
-                                        e.stopPropagation();
                                         setCurrentColor(e.target.value);
-                                        setShowColorPicker(false);
+                                        // Don't close picker when dragging, only on blur
                                     }}
-                                    onClick={(e) => e.stopPropagation()}
-                                    onMouseDown={(e) => e.stopPropagation()}
+                                    onBlur={() => {
+                                        // Close picker when user clicks away
+                                        setTimeout(() => setShowColorPicker(false), 200);
+                                    }}
                                     className="w-full h-10 rounded border border-gray-300 cursor-pointer"
                                 />
                             </div>
                         )}
                     </div>
 
-                    <Button variant="outline" size="sm" onClick={handleUndo} disabled={history.length === 0}>
-                        <Undo className="h-4 w-4 mr-1" />
+                    <Button variant="outline" size="sm" onClick={handleUndo} disabled={history.length === 0} className="text-xs px-2 py-1 h-8">
+                        <Undo className="h-3.5 w-3.5 mr-1" />
                         Undo
                     </Button>
 
-                    <Button variant="outline" size="sm" onClick={handleClear}>
-                        <Trash2 className="h-4 w-4 mr-1" />
+                    <Button variant="outline" size="sm" onClick={handleClear} className="text-xs px-2 py-1 h-8">
+                        <Trash2 className="h-3.5 w-3.5 mr-1" />
                         Clear
                     </Button>
                 </div>
