@@ -91,9 +91,26 @@ export function ProductResults({ showResults, products }) {
 
             {/* Results */}
             <div className="flex-1 overflow-y-auto p-6">
-                {!showResults ? (
-                <div className="text-center text-gray-500">Draw something and click Search</div>
-                ) : (
+            {!showResults ? (
+  <div className="bg-[#cbd6c6] h-full flex flex-col items-center justify-center text-center px-6 rounded-xl">
+    <div className="w-50 h-50 mb-6 opacity-80 rounded-xl overflow-hidden border-white border-4">
+      <img
+        src="/mascot.jpg" // optional image in public/
+        alt="Draw to search"
+        className="w-full h-full object-contain"
+      />
+    </div>
+
+    <h2 className="text-lg font-bold text-gray-800 mb-2">
+      No results yet
+    </h2>
+
+    <p className="text-sm text-gray max-w-sm">
+      Draw an object in the canvas on the left and click <span className="font-medium">Search Products</span> to find matching products.
+    </p>
+  </div>
+) : (
+
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {filteredProducts.map((product) => (
                     <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow">
