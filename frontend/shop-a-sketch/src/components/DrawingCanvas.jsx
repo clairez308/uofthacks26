@@ -1,45 +1,49 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { Brush, Eraser, Palette, Undo, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Slider } from './ui/slider';
 
 export function DrawingCanvas({ onSearch, showFeedback }) {
     const canvasRef = useRef(null);
-    const gridCanvasRef = useRef(null); // NEW: grid canvas
     const [isDrawing, setIsDrawing] = useState(false);
     const [currentTool, setCurrentTool] = useState('brush');
     const [brushSize, setBrushSize] = useState([8]);
     const [currentColor, setCurrentColor] = useState('#000000');
     const [showColorPicker, setShowColorPicker] = useState(false);
     const [history, setHistory] = useState([]);
-    const lastPos = useRef({ x: 0, y: 0 });
 
     const colors = ['#000000', '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE'];
 
-    // Initialize both canvases
+    const lastPos = useRef({ x: 0, y: 0 });
+    const gridCanvasRef = useRef(null);
+    const colorPickerRef = useRef(null); // Ref for color picker panel
+
+    // Close color picker when clicking outside
     useEffect(() => {
-        const canvas = canvasRef.current;
-        const gridCanvas = gridCanvasRef.current;
-        if (!canvas || !gridCanvas) return;
+        const handleClickOutside = (event) => {
+            if (
+                colorPickerRef.current &&
+                !colorPickerRef.current.contains(event.target) &&
+                !event.target.closest('[data-color-button]') // Don't close if clicking the color button itself
+            ) {
+                setShowColorPicker(false);
+            }
+        };
 
-        const ctx = canvas.getContext('2d');
-        const gridCtx = gridCanvas.getContext('2d');
-        if (!ctx || !gridCtx) return;
-
-        // Set canvas sizes
-        canvas.width = canvas.offsetWidth;
-        canvas.height = canvas.offsetHeight;
-        gridCanvas.width = gridCanvas.offsetWidth;
-        gridCanvas.height = gridCanvas.offsetHeight;
-
-        // Draw grid once
-        drawGrid(gridCtx, gridCanvas.width, gridCanvas.height);
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
     }, []);
 
-    const drawGrid = (ctx, width, height) => {
+    const drawGrid = useCallback((ctx, width, height) => {
+        if (!ctx) return;
+
         ctx.strokeStyle = '#E5E7EB';
         ctx.lineWidth = 1;
         const gridSize = 20;
+
+        ctx.clearRect(0, 0, width, height);
 
         for (let x = 0; x <= width; x += gridSize) {
             ctx.beginPath();
@@ -54,7 +58,29 @@ export function DrawingCanvas({ onSearch, showFeedback }) {
             ctx.lineTo(width, y);
             ctx.stroke();
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        const gridCanvas = gridCanvasRef.current;
+        if (!canvas || !gridCanvas) return;
+
+        const width = canvas.offsetWidth;
+        const height = canvas.offsetHeight;
+
+        canvas.width = width;
+        canvas.height = height;
+        gridCanvas.width = width;
+        gridCanvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        const gridCtx = gridCanvas.getContext('2d');
+        if (!ctx || !gridCtx) return;
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0)';
+        ctx.fillRect(0, 0, width, height);
+        drawGrid(gridCtx, width, height);
+    }, [drawGrid]);
 
     const saveHistory = () => {
         const canvas = canvasRef.current;
@@ -66,6 +92,9 @@ export function DrawingCanvas({ onSearch, showFeedback }) {
     };
 
     const startDrawing = (e) => {
+        // Don't start drawing if color picker is open
+        if (showColorPicker) return;
+
         const canvas = canvasRef.current;
         if (!canvas) return;
 
@@ -83,10 +112,14 @@ export function DrawingCanvas({ onSearch, showFeedback }) {
         setIsDrawing(false);
         const canvas = canvasRef.current;
         const ctx = canvas?.getContext('2d');
-        if (ctx) ctx.beginPath();
+        if (ctx) {
+            ctx.beginPath();
+        }
     };
 
     const draw = (e) => {
+        // Don't draw if color picker is open
+        if (showColorPicker) return;
         if (!isDrawing) return;
 
         const canvas = canvasRef.current;
@@ -101,7 +134,8 @@ export function DrawingCanvas({ onSearch, showFeedback }) {
         ctx.lineCap = 'round';
 
         if (currentTool === 'eraser') {
-            ctx.globalCompositeOperation = 'destination-out'; // erases strokes only
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.strokeStyle = '#FFFFFF';
         } else {
             ctx.globalCompositeOperation = 'source-over';
             ctx.strokeStyle = currentColor;
@@ -122,7 +156,8 @@ export function DrawingCanvas({ onSearch, showFeedback }) {
 
         saveHistory();
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        // grid stays intact because it's on a separate canvas
+        ctx.fillStyle = 'rgba(255, 255, 255, 0)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
     };
 
     const handleUndo = () => {
@@ -138,6 +173,8 @@ export function DrawingCanvas({ onSearch, showFeedback }) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.putImageData(previousState, 0, 0);
     };
+
+    // ... rest of the functions remain the same
 
     return (
         <div className="flex flex-col h-full">
@@ -166,6 +203,7 @@ export function DrawingCanvas({ onSearch, showFeedback }) {
 
                     <div className="relative">
                         <Button
+                            data-color-button
                             variant="outline"
                             size="sm"
                             onClick={() => setShowColorPicker(!showColorPicker)}
@@ -179,16 +217,28 @@ export function DrawingCanvas({ onSearch, showFeedback }) {
                         </Button>
 
                         {showColorPicker && (
-                            <div className="absolute top-full mt-2 left-0 bg-white p-3 rounded-lg shadow-lg border border-gray-200 z-10">
+                            <div
+                                ref={colorPickerRef}
+                                className="absolute top-full mt-2 left-0 bg-white p-3 rounded-lg shadow-lg border border-gray-200 z-20"
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onMouseMove={(e) => e.stopPropagation()}
+                                onClick={(e) => e.stopPropagation()}
+                            >
                                 <div className="grid grid-cols-4 gap-2 mb-3">
                                     {colors.map((color) => (
                                         <button
                                             key={color}
-                                            className="w-8 h-8 rounded-full border-2 border-gray-300 hover:border-[#008060] transition-colors"
+                                            className="w-8 h-8 rounded-full border-2 border-gray-300 hover:border-[#008060] transition-colors cursor-pointer"
                                             style={{ backgroundColor: color }}
-                                            onClick={() => {
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                e.preventDefault();
                                                 setCurrentColor(color);
                                                 setShowColorPicker(false);
+                                            }}
+                                            onMouseDown={(e) => {
+                                                e.stopPropagation();
+                                                e.preventDefault();
                                             }}
                                         />
                                     ))}
@@ -196,7 +246,13 @@ export function DrawingCanvas({ onSearch, showFeedback }) {
                                 <input
                                     type="color"
                                     value={currentColor}
-                                    onChange={(e) => setCurrentColor(e.target.value)}
+                                    onChange={(e) => {
+                                        e.stopPropagation();
+                                        setCurrentColor(e.target.value);
+                                        setShowColorPicker(false);
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    onMouseDown={(e) => e.stopPropagation()}
                                     className="w-full h-10 rounded border border-gray-300 cursor-pointer"
                                 />
                             </div>
@@ -229,22 +285,25 @@ export function DrawingCanvas({ onSearch, showFeedback }) {
                 </div>
             </div>
 
-            {/* Canvas Area */}
+            {/* Canvas Area with layered canvases */}
             <div className="flex-1 relative bg-white">
-                {/* Grid Canvas */}
+                {/* Grid canvas (background layer) */}
                 <canvas
                     ref={gridCanvasRef}
-                    className="absolute top-0 left-0 w-full h-full pointer-events-none z-0"
+                    className="absolute top-0 left-0 w-full h-full pointer-events-none"
                 />
 
-                {/* Drawing Canvas */}
+                {/* Drawing canvas (top layer) */}
                 <canvas
                     ref={canvasRef}
-                    className="absolute top-0 left-0 w-full h-full cursor-crosshair z-10"
+                    className="absolute top-0 left-0 w-full h-full cursor-crosshair"
                     onMouseDown={startDrawing}
                     onMouseMove={draw}
                     onMouseUp={stopDrawing}
                     onMouseLeave={stopDrawing}
+                    style={{
+                        pointerEvents: showColorPicker ? 'none' : 'auto'
+                    }}
                 />
             </div>
 
