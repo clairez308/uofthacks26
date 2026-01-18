@@ -310,7 +310,13 @@ export function DrawingCanvas({ onSearch, showFeedback }) {
             {/* Search Button */}
             <div className="p-4 border-t border-gray-200 bg-white">
                 <Button
-                    onClick={onSearch}
+                    onClick={() => {
+                        if (!canvasRef.current) return;
+                        const dataUrl = canvasRef.current.toDataURL("image/png");
+                        if (onSearch) {
+                            onSearch(dataUrl);
+                        }
+                    }}
                     className="w-full bg-[#008060] hover:bg-[#006e52] text-white font-medium"
                     size="lg"
                 >
