@@ -60,26 +60,60 @@ export function DrawingCanvas({ onSearch }) {
         }
     }, []);
 
-    useEffect(() => {
+    // Helper function to get coordinates from mouse or touch event
+    const getCoordinates = (e) => {
         const canvas = canvasRef.current;
-        const gridCanvas = gridCanvasRef.current;
-        if (!canvas || !gridCanvas) return;
+        if (!canvas) return { x: 0, y: 0 };
+        
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : (e.changedTouches ? e.changedTouches[0].clientX : e.clientX);
+        const clientY = e.touches ? e.touches[0].clientY : (e.changedTouches ? e.changedTouches[0].clientY : e.clientY);
+        
+        return {
+            x: clientX - rect.left,
+            y: clientY - rect.top
+        };
+    };
 
-        const width = canvas.offsetWidth;
-        const height = canvas.offsetHeight;
+    useEffect(() => {
+        const resizeCanvas = () => {
+            const canvas = canvasRef.current;
+            const gridCanvas = gridCanvasRef.current;
+            if (!canvas || !gridCanvas) return;
 
-        canvas.width = width;
-        canvas.height = height;
-        gridCanvas.width = width;
-        gridCanvas.height = height;
+            const rect = canvas.getBoundingClientRect();
+            const width = rect.width;
+            const height = rect.height;
+            
+            // Account for device pixel ratio for crisp rendering on mobile
+            const dpr = window.devicePixelRatio || 1;
 
-        const ctx = canvas.getContext('2d');
-        const gridCtx = gridCanvas.getContext('2d');
-        if (!ctx || !gridCtx) return;
+            canvas.width = width * dpr;
+            canvas.height = height * dpr;
+            gridCanvas.width = width * dpr;
+            gridCanvas.height = height * dpr;
 
-        ctx.fillStyle = 'rgba(255, 255, 255, 0)';
-        ctx.fillRect(0, 0, width, height);
-        drawGrid(gridCtx, width, height);
+            // Scale context to match device pixel ratio
+            const ctx = canvas.getContext('2d');
+            const gridCtx = gridCanvas.getContext('2d');
+            if (!ctx || !gridCtx) return;
+
+            ctx.scale(dpr, dpr);
+            gridCtx.scale(dpr, dpr);
+
+            ctx.fillStyle = 'rgba(255, 255, 255, 0)';
+            ctx.fillRect(0, 0, width, height);
+            drawGrid(gridCtx, width, height);
+        };
+
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('orientationchange', resizeCanvas);
+
+        return () => {
+            window.removeEventListener('resize', resizeCanvas);
+            window.removeEventListener('orientationchange', resizeCanvas);
+        };
     }, [drawGrid]);
 
     const saveHistory = () => {
@@ -96,6 +130,12 @@ export function DrawingCanvas({ onSearch }) {
         const canvas = canvasRef.current;
         if (!canvas || !ctx) return;
 
+        // Account for device pixel ratio - coordinates are in CSS space, but canvas is scaled
+        const dpr = window.devicePixelRatio || 1;
+        const scaledX = startX * dpr;
+        const scaledY = startY * dpr;
+
+        // Get image data at full resolution
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const data = imageData.data;
         const width = canvas.width;
@@ -111,8 +151,8 @@ export function DrawingCanvas({ onSearch }) {
 
         const [fillR, fillG, fillB, fillA] = hexToRgba(fillColor);
         
-        // Get the color at the starting point
-        const startIndex = ((Math.floor(startY) * width) + Math.floor(startX)) * 4;
+        // Get the color at the starting point (using scaled coordinates)
+        const startIndex = ((Math.floor(scaledY) * width) + Math.floor(scaledX)) * 4;
         const targetR = data[startIndex];
         const targetG = data[startIndex + 1];
         const targetB = data[startIndex + 2];
@@ -123,8 +163,8 @@ export function DrawingCanvas({ onSearch }) {
             return;
         }
 
-        // Stack-based flood fill
-        const stack = [[Math.floor(startX), Math.floor(startY)]];
+        // Stack-based flood fill (using scaled coordinates)
+        const stack = [[Math.floor(scaledX), Math.floor(scaledY)]];
         const visited = new Set();
 
         while (stack.length > 0) {
@@ -167,12 +207,13 @@ export function DrawingCanvas({ onSearch }) {
         // Don't start drawing if color picker is open
         if (showColorPicker) return;
 
+        // Prevent default to avoid scrolling on touch devices
+        e.preventDefault();
+
         const canvas = canvasRef.current;
         if (!canvas) return;
 
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const { x, y } = getCoordinates(e);
 
         // Handle fill tool
         if (currentTool === 'fill') {
@@ -189,7 +230,10 @@ export function DrawingCanvas({ onSearch }) {
         saveHistory();
     };
 
-    const stopDrawing = () => {
+    const stopDrawing = (e) => {
+        if (e) {
+            e.preventDefault();
+        }
         setIsDrawing(false);
         const canvas = canvasRef.current;
         const ctx = canvas?.getContext('2d');
@@ -203,13 +247,14 @@ export function DrawingCanvas({ onSearch }) {
         if (showColorPicker) return;
         if (!isDrawing) return;
 
+        // Prevent default to avoid scrolling on touch devices
+        e.preventDefault();
+
         const canvas = canvasRef.current;
         const ctx = canvas?.getContext('2d');
         if (!canvas || !ctx) return;
 
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const { x, y } = getCoordinates(e);
 
         ctx.lineWidth = brushSize[0];
         ctx.lineCap = 'round';
@@ -264,30 +309,39 @@ export function DrawingCanvas({ onSearch }) {
             <div className="p-4 border-b border-gray-200 bg-white">
                 <div className="flex items-center gap-2 mb-4">
                     <Button
-                        variant={currentTool === 'brush' ? 'default' : 'outline'}
+                        variant={currentTool === 'brush' && !showColorPicker ? 'default' : 'outline'}
                         size="sm"
-                        onClick={() => setCurrentTool('brush')}
-                        className={`${currentTool === 'brush' ? 'bg-[#008060] hover:bg-[#006e52]' : ''} text-xs px-2 py-1 h-8`}
+                        onClick={() => {
+                            setCurrentTool('brush');
+                            setShowColorPicker(false);
+                        }}
+                        className={`${currentTool === 'brush' && !showColorPicker ? 'bg-[#008060] hover:bg-[#006e52]' : ''} text-xs px-2 py-1 h-8`}
                     >
                         <Brush className="h-3.5 w-3.5 mr-1" />
                         Brush
                     </Button>
 
                     <Button
-                        variant={currentTool === 'eraser' ? 'default' : 'outline'}
+                        variant={currentTool === 'eraser' && !showColorPicker ? 'default' : 'outline'}
                         size="sm"
-                        onClick={() => setCurrentTool('eraser')}
-                        className={`${currentTool === 'eraser' ? 'bg-[#008060] hover:bg-[#006e52]' : ''} text-xs px-2 py-1 h-8`}
+                        onClick={() => {
+                            setCurrentTool('eraser');
+                            setShowColorPicker(false);
+                        }}
+                        className={`${currentTool === 'eraser' && !showColorPicker ? 'bg-[#008060] hover:bg-[#006e52]' : ''} text-xs px-2 py-1 h-8`}
                     >
                         <Eraser className="h-3.5 w-3.5 mr-1" />
                         Eraser
                     </Button>
 
                     <Button
-                        variant={currentTool === 'fill' ? 'default' : 'outline'}
+                        variant={currentTool === 'fill' && !showColorPicker ? 'default' : 'outline'}
                         size="sm"
-                        onClick={() => setCurrentTool('fill')}
-                        className={`${currentTool === 'fill' ? 'bg-[#008060] hover:bg-[#006e52]' : ''} text-xs px-2 py-1 h-8`}
+                        onClick={() => {
+                            setCurrentTool('fill');
+                            setShowColorPicker(false);
+                        }}
+                        className={`${currentTool === 'fill' && !showColorPicker ? 'bg-[#008060] hover:bg-[#006e52]' : ''} text-xs px-2 py-1 h-8`}
                     >
                         <PaintBucket className="h-3.5 w-3.5 mr-1" />
                         Fill
@@ -296,10 +350,10 @@ export function DrawingCanvas({ onSearch }) {
                     <div className="relative">
                         <Button
                             data-color-button
-                            variant="outline"
+                            variant={showColorPicker ? 'default' : 'outline'}
                             size="sm"
                             onClick={() => setShowColorPicker(!showColorPicker)}
-                            className="text-xs px-2 py-1 h-8"
+                            className={`text-xs px-2 py-1 h-8 ${showColorPicker ? 'bg-[#008060] hover:bg-[#006e52]' : ''}`}
                         >
                             <Palette className="h-3.5 w-3.5 mr-1" />
                             Colour
@@ -399,13 +453,18 @@ export function DrawingCanvas({ onSearch }) {
                 {/* Drawing canvas (top layer) */}
                 <canvas
                     ref={canvasRef}
-                    className="absolute top-0 left-0 w-full h-full cursor-crosshair"
+                    className="absolute top-0 left-0 w-full h-full cursor-crosshair touch-none"
                     onMouseDown={startDrawing}
                     onMouseMove={draw}
                     onMouseUp={stopDrawing}
                     onMouseLeave={stopDrawing}
+                    onTouchStart={startDrawing}
+                    onTouchMove={draw}
+                    onTouchEnd={stopDrawing}
+                    onTouchCancel={stopDrawing}
                     style={{
-                        pointerEvents: showColorPicker ? 'none' : 'auto'
+                        pointerEvents: showColorPicker ? 'none' : 'auto',
+                        touchAction: 'none' // Prevent scrolling/zooming on touch devices
                     }}
                 />
             </div>
