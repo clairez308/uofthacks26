@@ -123,7 +123,15 @@ export function ProductResults({ showResults, products, loading = false }) {
                 ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {filteredProducts.map((product) => (
-                    <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                    <Card 
+                        key={product.id} 
+                        className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
+                        onClick={() => {
+                            if (product.url) {
+                                window.open(product.url, '_blank', 'noopener,noreferrer');
+                            }
+                        }}
+                    >
                         {product.image && (
                             <img
                                 src={product.image}
@@ -151,6 +159,9 @@ export function ProductResults({ showResults, products, loading = false }) {
                             asChild
                             className="w-full bg-[#008060] hover:bg-[#006e52] text-white"
                             size="sm"
+                            onClick={(e) => {
+                                e.stopPropagation(); // Prevent card click when clicking button
+                            }}
                         >
                             <a href={product.url || '#'} target="_blank" rel="noopener noreferrer">
                             <ExternalLink className="h-4 w-4 mr-2" />
